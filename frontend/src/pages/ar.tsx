@@ -6,6 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 
+// Import images properly
+import aerial1 from '@/assets/aerial-drone-view-chisinau-downtown-panorama-view-multiple-buildings-roads[1].jpg';
+import jharkhandImage from '@/assets/IMG-20250908-WA0012[1].jpg';
+import jharkhandHero from '@/assets/jharkhand-hero.jpg';
+
 interface Photo360 {
   id: string;
   title: string;
@@ -34,37 +39,44 @@ const Photo360Viewer = () => {
     {
       id: '1',
       title: 'Chisinau Downtown Aerial View',
-      description: 'Panoramic aerial view of downtown area',
+      description: 'Panoramic aerial view of downtown area showcasing urban development',
       location: 'City Center',
-      url: '/src/assets/aerial-drone-view-chisinau-downtown-panorama-view-multiple-buildings-roads[1].jpg',
+      url: aerial1,
     },
     {
       id: '2',
-      title: 'Dassam Falls',
-      description: 'Beautiful waterfall in Jharkhand',
-      location: 'Taimara, Jharkhand',
-      url: 'https://www.google.com/local/place/fid/0x39f50582abc9771b:0x4fd0fcab35288a4b/photosphere?iu=https://lh3.googleusercontent.com/gps-cs-s/AC9h4nq8zAZknQJjiBJJn1FH-j0XwHEMVhpOp3Qh5ZlSBFKpC-jDKERAuSWKdkDSoNQuQ61zXv24Twh4TtMjU1WnaZMVltDNZlee8LH_-murAiGxdncLoiY823BgU3NgudyrGraV2xSLKA%3Dw160-h106-k-no-pi-10-ya90-ro-0-fo100&ik=CAoSF0NJSE0wb2dLRUlDQWdJRE0ydU9vMGdF',
+      title: 'Jharkhand Cultural Heritage',
+      description: 'Traditional architecture and cultural landmarks',
+      location: 'Heritage Site, Jharkhand',
+      url: jharkhandImage,
     },
     {
       id: '3',
-      title: 'Hundru Falls',
-      description: 'Scenic waterfall viewpoint',
-      location: 'Ranchi, Jharkhand',
-      url: 'https://threejs.org/examples/textures/equirectangular/pedestrian_overpass_1k.jpg',
+      title: 'Jharkhand Landscape',
+      description: 'Beautiful natural landscape of Jharkhand',
+      location: 'Jharkhand, India',
+      url: jharkhandHero,
     },
     {
       id: '4',
-      title: 'Betla National Park',
-      description: 'Wildlife sanctuary panorama',
-      location: 'Latehar, Jharkhand',
-      url: 'https://threejs.org/examples/textures/equirectangular/quarry_01_1k.jpg',
+      title: 'Forest Canopy View',
+      description: 'Immersive forest experience with 360° view',
+      location: 'Betla National Park',
+      url: 'https://threejs.org/examples/textures/equirectangular/forest_slope_1k.jpg',
     },
     {
       id: '5',
-      title: 'Netarhat Hills',
-      description: 'Hill station sunrise view',
-      location: 'Latehar, Jharkhand', 
-      url: '/src/assets/IMG-20250908-WA0012[1].jpg',
+      title: 'Sunset Hills',
+      description: 'Panoramic sunset view from Netarhat hills',
+      location: 'Netarhat, Jharkhand',
+      url: 'https://threejs.org/examples/textures/equirectangular/pedestrian_overpass_1k.jpg',
+    },
+    {
+      id: '6',
+      title: 'Quarry Landscape',
+      description: 'Industrial heritage and mining landscape',
+      location: 'Mining Area, Jharkhand',
+      url: 'https://threejs.org/examples/textures/equirectangular/quarry_01_1k.jpg',
     }
   ];
 
@@ -221,29 +233,70 @@ const Photo360Viewer = () => {
     };
   }, []);
 
-  const loadTexture = (url: string) => {
+  const loadTexture = (url: string, isRetry: boolean = false) => {
     if (!sphereRef.current) return;
     
     setIsLoading(true);
-    setError(null);
+    if (!isRetry) setError(null);
+    
     const loader = new THREE.TextureLoader();
+    
+    // Handle cross-origin for external URLs
+    loader.setCrossOrigin('anonymous');
     
     loader.load(
       url,
       (texture) => {
-        if (sphereRef.current && sphereRef.current.material instanceof THREE.MeshBasicMaterial) {
-          sphereRef.current.material.map = texture;
-          sphereRef.current.material.needsUpdate = true;
+        try {
+          if (sphereRef.current && sphereRef.current.material instanceof THREE.MeshBasicMaterial) {
+            // Dispose of previous texture to prevent memory leaks
+            if (sphereRef.current.material.map) {
+              sphereRef.current.material.map.dispose();
+            }
+            
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            
+            sphereRef.current.material.map = texture;
+            sphereRef.current.material.needsUpdate = true;
+          }
+          setIsLoading(false);
+          console.log('✅ Texture loaded successfully:', url);
+        } catch (err) {
+          console.error('❌ Error applying texture:', err);
+          setError('Failed to apply the 360° photo. Please try again.');
+          setIsLoading(false);
         }
-        setIsLoading(false);
       },
       (progress) => {
-        // Loading progress - could add progress bar here
-        console.log('Loading progress:', (progress.loaded / progress.total) * 100, '%');
+        // Loading progress
+        const percent = (progress.loaded / progress.total) * 100;
+        console.log(`📸 Loading texture: ${percent.toFixed(1)}%`);
       },
       (error) => {
-        console.error('Error loading texture:', error);
-        setError('Failed to load 360° photo. Please try another image.');
+        console.error('❌ Error loading texture:', error);
+        console.error('📍 Failed URL:', url);
+        
+        // Try fallback to a working local image if this is not already a retry
+        if (!isRetry && url !== jharkhandHero) {
+          console.log('🔄 Trying fallback image...');
+          loadTexture(jharkhandHero, true);
+          return;
+        }
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to load 360° photo.';
+        if (url.includes('threejs.org')) {
+          errorMessage = 'External image temporarily unavailable. Using local fallback.';
+        } else if (url.startsWith('/')) {
+          errorMessage = 'Local image not found. Please check image path.';
+        } else {
+          errorMessage = 'Image loading failed. Please check your internet connection.';
+        }
+        
+        setError(errorMessage);
         setIsLoading(false);
       }
     );
